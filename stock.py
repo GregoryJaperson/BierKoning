@@ -51,7 +51,7 @@ def buy(purchase_date ,name, beer_price, quantity, statiegeld):
         cursor = connection.cursor()
         #Insert the new beers to the stock table
         cursor.execute("""
-            INSERT INTO beer (name, price, quantity, status, purchase_date) VALUES (?,?,?,?,?,?);""",
+            INSERT INTO beer (name, price, quantity, status, purchase_date) VALUES (?,?,?,?,?);""",
             (name, beer_price, quantity, 'Available', purchase_date) 
         )
 
@@ -64,7 +64,7 @@ def buy(purchase_date ,name, beer_price, quantity, statiegeld):
 
         #Decrease the balance
         current_balance = get_balance(connection)
-        set_balance(connection, current_balance - beer_price - quantity)
+        set_balance(connection, current_balance - beer_price - statiegeld)
 
         connection.commit()
 
