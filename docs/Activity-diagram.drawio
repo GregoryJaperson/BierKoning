@@ -1,0 +1,192 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36" version="29.2.1">
+  <diagram id="v_c_7ER8nKNnE94rNelB" name="Page-1">
+    <mxGraphModel dx="1700" dy="591" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="1ExNwWWtqpGNidzhCieV-18" parent="1" style="ellipse;html=1;shape=startState;fillColor=#000000;strokeColor=#ff0000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="263" y="22" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-19" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-18" style="edgeStyle=orthogonalEdgeStyle;html=1;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#ff0000;rounded=0;" value="">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="278" y="112" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-20" parent="1" style="strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;whiteSpace=wrap;" value="Action pick" vertex="1">
+          <mxGeometry height="100" width="100" x="228" y="116" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-21" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-20" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" target="1ExNwWWtqpGNidzhCieV-22" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="300" y="270" as="sourcePoint" />
+            <mxPoint x="510" y="230" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-22" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Input purchase and stock" vertex="1">
+          <mxGeometry height="60" width="120" x="460" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-23" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Settle beer cost" vertex="1">
+          <mxGeometry height="60" width="120" x="340" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-25" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-20" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="1ExNwWWtqpGNidzhCieV-23" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="310" y="240" as="sourcePoint" />
+            <mxPoint x="360" y="190" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-34" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-33">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-26" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Check inventory" vertex="1">
+          <mxGeometry height="60" width="120" x="120" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-27" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-20" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;" target="1ExNwWWtqpGNidzhCieV-26" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="290" y="330" as="sourcePoint" />
+            <mxPoint x="340" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-32" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-28" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=1;entryY=0;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-28" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Check balance" vertex="1">
+          <mxGeometry height="60" width="120" x="10" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-29" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-20" style="endArrow=classic;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;" target="1ExNwWWtqpGNidzhCieV-28" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="280" y="220" as="sourcePoint" />
+            <mxPoint x="310" y="280" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-51" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-50">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-90" y="675" />
+            </Array>
+            <mxPoint x="80" y="718" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-31" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Returns the liquid cash available" vertex="1">
+          <mxGeometry height="60" width="120" x="-150" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-52" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-50">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="100" y="675" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-33" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Returns list of available beers" vertex="1">
+          <mxGeometry height="60" width="120" x="40" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-35" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-20" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-36" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="280" y="380" as="sourcePoint" />
+            <mxPoint x="280" y="330" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-36" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Return statiegeld" vertex="1">
+          <mxGeometry height="60" width="120" x="220" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-37" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-36" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="290" y="500" as="sourcePoint" />
+            <mxPoint x="280" y="470" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-38" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Take input of id and puts statiegeld back in balance&amp;nbsp;" vertex="1">
+          <mxGeometry height="60" width="120" x="220" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-39" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-41" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="470" y="410" as="sourcePoint" />
+            <mxPoint x="460" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-40" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-23" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="1ExNwWWtqpGNidzhCieV-41" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="400" y="330" as="sourcePoint" />
+            <mxPoint x="460" y="390" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-54" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-41" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-50">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="460" y="675" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-41" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Take input of id which has been marked empty. Return the beer cost to balance&amp;nbsp;&amp;nbsp;" vertex="1">
+          <mxGeometry height="60" width="120" x="400" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-42" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-22" style="endArrow=classic;html=1;rounded=0;" target="1ExNwWWtqpGNidzhCieV-43" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="590" y="260" as="sourcePoint" />
+            <mxPoint x="640" y="210" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-55" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-43" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-50">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="670" y="675" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-43" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Input beer name, quantity, beer cost, statiegeld, purchase date" vertex="1">
+          <mxGeometry height="60" width="120" x="610" y="280" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-44" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Mark as empty" vertex="1">
+          <mxGeometry height="60" width="120" x="460" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-46" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-20" style="endArrow=classic;html=1;rounded=0;" target="1ExNwWWtqpGNidzhCieV-44" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="340" y="160" as="sourcePoint" />
+            <mxPoint x="390" y="110" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-47" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-44" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" target="1ExNwWWtqpGNidzhCieV-48" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="620" y="140" as="sourcePoint" />
+            <mxPoint x="670" y="90" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-56" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-48" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-50">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="790" y="130" />
+              <mxPoint x="790" y="675" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-48" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Make the status of a beer to empty" vertex="1">
+          <mxGeometry height="60" width="120" x="650" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-58" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-50" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="1ExNwWWtqpGNidzhCieV-57">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-50" parent="1" style="rhombus;whiteSpace=wrap;html=1;" value="End of action" vertex="1">
+          <mxGeometry height="90" width="90" x="235" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-53" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-38" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="280" y="630" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-57" parent="1" style="ellipse;html=1;shape=endState;fillColor=#000000;strokeColor=#ff0000;" value="" vertex="1">
+          <mxGeometry height="30" width="30" x="265" y="810" as="geometry" />
+        </mxCell>
+        <mxCell id="1ExNwWWtqpGNidzhCieV-60" edge="1" parent="1" source="1ExNwWWtqpGNidzhCieV-50" style="curved=1;endArrow=classic;html=1;rounded=0;exitX=0.278;exitY=0.778;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitPerimeter=0;" target="1ExNwWWtqpGNidzhCieV-18" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="150" y="720" />
+              <mxPoint x="-10" y="690" />
+              <mxPoint x="-150" y="700" />
+              <mxPoint x="-220" y="120" />
+            </Array>
+            <mxPoint x="255" y="698" as="sourcePoint" />
+            <mxPoint x="283" y="60" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
