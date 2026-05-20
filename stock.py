@@ -12,11 +12,19 @@ def get_available_stock():
         cursor.execute("""SELECT * FROM beer WHERE status = 'Available'""")
         return cursor.fetchall()
 
+#Get all stock
+def get_all_stock():
+    with get_db() as connection:
+        cursor = connection.cursor()
+        cursor.execute("""SELECT * FROM beer""")
+        return cursor.fetchall()
+
 #Get beer status
 def get_status(connection, beer_id):
-    cursor = connection.cursor
-    cursor.execute("""SELECT status FROM beer WHERE beer_id=?""")
-    return cursor.fetchone[0]
+    cursor = connection.cursor()
+    cursor.execute("""SELECT status FROM beer WHERE beer_id=?""", (beer_id,))
+    result = cursor.fetchone()
+    return result[0] if result else None
 
 #Check in-house stock
 def get_every_stock():
@@ -86,13 +94,14 @@ def declare_beer(beer_id):
     with get_db() as connection:
         cursor = connection.cursor()
 
+        beer_id_int = int(beer_id)
         current_status = get_status(connection, beer_id)
         if current_status == 'Declared' or current_status=='Returned':
             raise ValueError("Beer is already declared and/or returned")
 
         # Get beer price and add it to balance
         current_balance = get_balance(connection)
-        cursor.execute("""SELECT price FROM beer WHERE beer_id=?""", beer_id)
+        cursor.execute("""SELECT price FROM beer WHERE beer_id=?""", (beer_id_int,))
         beer_price = cursor.fetchone()[0]
         set_balance(connection, current_balance+beer_price)
 
@@ -115,7 +124,7 @@ def return_beer(beer_id):
 
         #Get statiegeld and add it to balance
         current_balance = get_balance(connection)
-        cursor.execute("""SELECT value FROM statiegeld WHERE beer_id=?""", beer_id)
+        cursor.execute("""SELECT value FROM statiegeld WHERE beer_id=?""", (beer_id,))
         statiegeld_value = cursor.fetchone()[0]
         set_balance(connection, current_balance+statiegeld_value)
 

@@ -46,14 +46,18 @@ with get_connection() as connection:
         );
         """
 
+        create_password = """
+        CREATE TABLE IF NOT EXISTS password(
+        username VARCHAR(20) PRIMARY KEY NOT NULL,
+        password TEXT NOT NULL
+        );
+        """
 
         cursor.execute(create_beer)
-
         cursor.execute(create_statiegeld)
-
         cursor.execute(create_balance)
-
         cursor.execute(create_consumption)
+        cursor.execute(create_password)
 
         connection.commit()
 
