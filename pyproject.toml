@@ -1,0 +1,10 @@
+[project]
+name = "bierkoning"
+version = "0.1.0"
+description = "Beer stock and cash tracking for a student house"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = ["bcrypt>=5,<6"]
+
+[tool.uv]
+package = false
