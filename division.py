@@ -80,8 +80,7 @@ def add_crate(product_name, purchased_on, bottles, total_price_cents, deposit_ce
         return purchase_id
 
 
-def record_consumption(person_id, purchase_id, bottles, consumed_on=None):
-    consumed_on = consumed_on or date.today().isoformat()
+def record_consumption(person_id, purchase_id, bottles):
     with connect() as conn:
         person = conn.execute(
             "SELECT active FROM person WHERE person_id = ?",
@@ -92,17 +91,13 @@ def record_consumption(person_id, purchase_id, bottles, consumed_on=None):
             raise ValueError("Person is inactive")
 
         purchase = conn.execute("""
-            SELECT bottles, purchased_on, closed_at
+            SELECT bottles, closed_at
             FROM purchase WHERE purchase_id = ?
         """, (purchase_id,)).fetchone()
         if purchase is None:
             raise ValueError(f"Unknown purchase {purchase_id}")
         if purchase["closed_at"] is not None:
             raise ValueError("Purchase is closed and locked")
-        if consumed_on > date.today().isoformat():
-            raise ValueError("Consumption date is in the future")
-        if consumed_on < purchase["purchased_on"]:
-            raise ValueError("Consumption date is before the purchase date")
 
         used = conn.execute("""
             SELECT COALESCE(SUM(bottles), 0) AS n
@@ -111,10 +106,11 @@ def record_consumption(person_id, purchase_id, bottles, consumed_on=None):
         if used + bottles > purchase["bottles"]:
             raise ValueError(f"Only {purchase['bottles'] - used} bottles left in this crate")
 
+        # consumed_on is left to its DB default (today): a silent entry stamp.
         conn.execute("""
-            INSERT INTO consumption (consumed_on, person_id, purchase_id, bottles)
-            VALUES (?, ?, ?, ?)
-        """, (consumed_on, person_id, purchase_id, bottles))
+            INSERT INTO consumption (person_id, purchase_id, bottles)
+            VALUES (?, ?, ?)
+        """, (person_id, purchase_id, bottles))
 
 
 def close_purchase(purchase_id, deposit_missing_cents):
@@ -170,10 +166,10 @@ def _check_open_and_paid(conn, purchase_id):
 def list_consumption(purchase_id):
     with connect() as conn:
         return conn.execute("""
-            SELECT c.consumption_id, pe.name, c.bottles, c.consumed_on
+            SELECT c.consumption_id, pe.name, c.bottles
             FROM consumption c JOIN person pe USING (person_id)
             WHERE c.purchase_id = ?
-            ORDER BY c.consumed_on, c.consumption_id
+            ORDER BY c.consumption_id
         """, (purchase_id,)).fetchall()
 
 

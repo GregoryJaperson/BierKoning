@@ -24,7 +24,7 @@ class MigrateTests(unittest.TestCase):
 
         alice = division.add_person("Alice")
         crate = division.add_crate("Test", "2026-11-01", 24, 1500)
-        division.record_consumption(alice, crate, 3, "2026-11-02")
+        division.record_consumption(alice, crate, 3)
 
         # Replaying the schema must not drop or duplicate anything.
         with db.connect() as conn:
@@ -37,8 +37,8 @@ class MigrateTests(unittest.TestCase):
         alice = division.add_person("Alice")
         bob = division.add_person("Bob")
         crate = division.add_crate("Test", "2026-11-01", 24, 1500)
-        division.record_consumption(alice, crate, 6, "2026-11-02")
-        division.record_consumption(bob, crate, 3, "2026-11-02")
+        division.record_consumption(alice, crate, 6)
+        division.record_consumption(bob, crate, 3)
 
         summary = division.purchase_summary(crate, 50)
         self.assertEqual(summary["unaccounted"], 15)
@@ -70,8 +70,8 @@ class MigrateTests(unittest.TestCase):
         self.assertEqual(sheet["difference"], 0)
         self.assertEqual((sheet["inventory"], sheet["deposits"]), (1500, 390))
 
-        division.record_consumption(alice, crate, 12, "2026-11-02")
-        division.record_consumption(bob, crate, 12, "2026-11-02")
+        division.record_consumption(alice, crate, 12)
+        division.record_consumption(bob, crate, 12)
         self.assertEqual(division.remaining_for(alice, crate), 750)
 
         division.record_payment(alice, crate, 750)
@@ -89,7 +89,7 @@ class MigrateTests(unittest.TestCase):
     def test_delete_consumption_on_open_crate(self):
         alice = division.add_person("Alice")
         crate = division.add_crate("Test", "2026-11-01", 24, 1500)
-        division.record_consumption(alice, crate, 3, "2026-11-02")
+        division.record_consumption(alice, crate, 3)
         entry = division.list_consumption(crate)[0]["consumption_id"]
 
         division.delete_consumption(entry)
@@ -100,7 +100,7 @@ class MigrateTests(unittest.TestCase):
         division.record_opening(18000)
         alice = division.add_person("Alice")
         crate = division.add_crate("Test", "2026-11-01", 24, 1500, 390)
-        division.record_consumption(alice, crate, 12, "2026-11-02")
+        division.record_consumption(alice, crate, 12)
 
         division.edit_crate(crate, 24, 1400, 390)
         self.assertEqual(division.get_balance(), 18000 - 1400 - 390)
@@ -113,7 +113,7 @@ class MigrateTests(unittest.TestCase):
     def test_corrections_refused_when_closed_or_overpaid(self):
         alice = division.add_person("Alice")
         crate = division.add_crate("Test", "2026-11-01", 24, 1500)
-        division.record_consumption(alice, crate, 12, "2026-11-02")
+        division.record_consumption(alice, crate, 12)
         entry = division.list_consumption(crate)[0]["consumption_id"]
 
         division.record_payment(alice, crate, 750)
@@ -129,16 +129,11 @@ class MigrateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             division.delete_consumption(entry)
 
-    def test_cash_only_added_and_future_date(self):
+    def test_cash_only_added(self):
         division.record_opening(18000)
         with self.assertRaises(ValueError):
             division.add_cash(-100)
         self.assertEqual(division.get_balance(), 18000)
-
-        alice = division.add_person("Alice")
-        crate = division.add_crate("Test", "2026-11-01", 24, 1500)
-        with self.assertRaises(ValueError):
-            division.record_consumption(alice, crate, 1, "2999-01-01")
 
     def test_case_insensitive_names_and_deactivation(self):
         crate = division.add_crate("Grolsch", "2026-11-01", 24, 1500)

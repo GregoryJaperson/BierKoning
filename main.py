@@ -175,8 +175,7 @@ def record_drinks():
     show_available()
     purchase_id = ask_int("Purchase ID")
     bottles = ask_int("Bottles")
-    consumed_on = ask_date("Date", date.today().isoformat())
-    division.record_consumption(person_id, purchase_id, bottles, consumed_on)
+    division.record_consumption(person_id, purchase_id, bottles)
     console.print("Consumption recorded.", style="green")
 
 
@@ -235,11 +234,10 @@ def correct_crate():
         if not entries:
             console.print("(nothing recorded)")
             return
-        t = Table("#", "Date", "Person", "Bottles",
+        t = Table("#", "Person", "Bottles",
                   title=f"Entries for crate #{purchase_id}")
         for e in entries:
-            t.add_row(str(e["consumption_id"]), e["consumed_on"], e["name"],
-                      str(e["bottles"]))
+            t.add_row(str(e["consumption_id"]), e["name"], str(e["bottles"]))
         console.print(t)
         division.delete_consumption(ask_int("Entry ID"))
         console.print("Entry deleted.", style="green")
