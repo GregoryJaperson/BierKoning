@@ -1,8 +1,7 @@
 # BierKoning
 
 ## Beer management system for student houses
-Some student houses love to drink beer (or other beverages) together
-, this software makes it easier to track the purchase and availability of it
+Some student houses love to drink beer (or other beverages) together. This software makes it easier to track the purchase and availability of it.
 
 ## Decisions
 Each student house has their own set of rules for beer distribution, here is mine
@@ -13,7 +12,7 @@ Each student house has their own set of rules for beer distribution, here is min
 5. Missing beers and missing deposit are divided among everyone that drank from the crate
 6. Counting of beers is done outside of the system
 7. Inputs of beer consumption and missing deposit is done right before the crate is returned
-8. Cash, deposits, beer stock and outstanding debts always add up to the opening cash plus top-ups
+8. Cash, deposits, beer stock and outstanding debts always add up to the opening cash
 
 ## How to use
 Currently, it is a TUI only application, here is a step-by-step tutorial on how to use it:
