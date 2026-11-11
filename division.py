@@ -62,6 +62,21 @@ def set_person_active(person_id, active):
 
 # ---------------------------------------------------------------- purchases
 
+def _purchase(conn, purchase_id):
+    row = conn.execute(
+        "SELECT * FROM purchase WHERE purchase_id = ?", (purchase_id,)).fetchone()
+    if row is None:
+        raise ValueError(f"Unknown purchase {purchase_id}")
+    return row
+
+
+def _recorded(conn, purchase_id):
+    return conn.execute("""
+        SELECT COALESCE(SUM(bottles), 0) AS n
+        FROM consumption WHERE purchase_id = ?
+    """, (purchase_id,)).fetchone()["n"]
+
+
 def add_crate(product_name, purchased_on, bottles, total_price_cents, deposit_cents=0):
     with connect() as conn:
         product_id = _product_id(conn, product_name)
@@ -90,19 +105,10 @@ def record_consumption(person_id, purchase_id, bottles):
         if not person["active"]:
             raise ValueError("Person is inactive")
 
-        purchase = conn.execute("""
-            SELECT bottles, closed_at
-            FROM purchase WHERE purchase_id = ?
-        """, (purchase_id,)).fetchone()
-        if purchase is None:
-            raise ValueError(f"Unknown purchase {purchase_id}")
+        purchase = _purchase(conn, purchase_id)
         if purchase["closed_at"] is not None:
             raise ValueError("Purchase is closed and locked")
-
-        used = conn.execute("""
-            SELECT COALESCE(SUM(bottles), 0) AS n
-            FROM consumption WHERE purchase_id = ?
-        """, (purchase_id,)).fetchone()["n"]
+        used = _recorded(conn, purchase_id)
         if used + bottles > purchase["bottles"]:
             raise ValueError(f"Only {purchase['bottles'] - used} bottles left in this crate")
 
@@ -113,26 +119,21 @@ def record_consumption(person_id, purchase_id, bottles):
         """, (person_id, purchase_id, bottles))
 
 
+def _check_closable(conn, purchase_id, deposit_missing_cents):
+    purchase = _purchase(conn, purchase_id)
+    if purchase["closed_at"] is not None:
+        raise ValueError("Purchase is already closed")
+    if not 0 <= deposit_missing_cents <= purchase["deposit_cents"]:
+        raise ValueError(
+            f"Missing deposit must be 0..{purchase['deposit_cents']} cents")
+    if _recorded(conn, purchase_id) == 0:
+        raise ValueError("Record at least one drinker before closing")
+    return purchase
+
+
 def close_purchase(purchase_id, deposit_missing_cents):
     with connect() as conn:
-        purchase = conn.execute("""
-            SELECT deposit_cents, closed_at FROM purchase WHERE purchase_id = ?
-        """, (purchase_id,)).fetchone()
-        if purchase is None:
-            raise ValueError(f"Unknown purchase {purchase_id}")
-        if purchase["closed_at"] is not None:
-            raise ValueError("Purchase is already closed")
-        if not 0 <= deposit_missing_cents <= purchase["deposit_cents"]:
-            raise ValueError(
-                f"Missing deposit must be 0..{purchase['deposit_cents']} cents")
-
-        recorded = conn.execute("""
-            SELECT COALESCE(SUM(bottles), 0) AS n
-            FROM consumption WHERE purchase_id = ?
-        """, (purchase_id,)).fetchone()["n"]
-        if recorded == 0:
-            raise ValueError("Record at least one drinker before closing")
-
+        purchase = _check_closable(conn, purchase_id, deposit_missing_cents)
         conn.execute("""
             UPDATE purchase SET closed_at = ?, deposit_missing_cents = ?
             WHERE purchase_id = ?
@@ -148,18 +149,12 @@ def close_purchase(purchase_id, deposit_missing_cents):
 
 def _check_open_and_paid(conn, purchase_id):
     """Run after a correction; raising rolls the correction back."""
-    purchase = conn.execute("""
-        SELECT purchase_id, bottles, total_price_cents, deposit_missing_cents,
-               closed_at
-        FROM purchase WHERE purchase_id = ?
-    """, (purchase_id,)).fetchone()
-    if purchase is None:
-        raise ValueError(f"Unknown purchase {purchase_id}")
+    purchase = _purchase(conn, purchase_id)
     if purchase["closed_at"] is not None:
         raise ValueError("Purchase is closed and locked")
     shares = _shares_for(conn, purchase)
-    for (pid_purchase, person_id), paid in _payments(conn).items():
-        if pid_purchase == purchase_id and paid > shares.get(person_id, 0):
+    for (_, person_id), paid in _payments(conn, purchase_id).items():
+        if paid > shares.get(person_id, 0):
             raise ValueError("Someone would have paid more than their share")
 
 
@@ -173,30 +168,21 @@ def list_consumption(purchase_id):
         """, (purchase_id,)).fetchall()
 
 
-def delete_consumption(consumption_id):
+def delete_consumption(purchase_id, consumption_id):
     with connect() as conn:
-        row = conn.execute(
-            "SELECT purchase_id FROM consumption WHERE consumption_id = ?",
-            (consumption_id,)).fetchone()
-        if row is None:
-            raise ValueError(f"Unknown entry {consumption_id}")
-        conn.execute("DELETE FROM consumption WHERE consumption_id = ?",
-                     (consumption_id,))
-        _check_open_and_paid(conn, row["purchase_id"])
+        cur = conn.execute("""
+            DELETE FROM consumption WHERE consumption_id = ? AND purchase_id = ?
+        """, (consumption_id, purchase_id))
+        if cur.rowcount == 0:
+            raise ValueError(
+                f"Entry #{consumption_id} is not on crate #{purchase_id}")
+        _check_open_and_paid(conn, purchase_id)
 
 
 def edit_crate(purchase_id, bottles, total_price_cents, deposit_cents):
     with connect() as conn:
-        old = conn.execute("""
-            SELECT total_price_cents, deposit_cents
-            FROM purchase WHERE purchase_id = ?
-        """, (purchase_id,)).fetchone()
-        if old is None:
-            raise ValueError(f"Unknown purchase {purchase_id}")
-        recorded = conn.execute("""
-            SELECT COALESCE(SUM(bottles), 0) AS n
-            FROM consumption WHERE purchase_id = ?
-        """, (purchase_id,)).fetchone()["n"]
+        old = _purchase(conn, purchase_id)
+        recorded = _recorded(conn, purchase_id)
         if bottles < recorded:
             raise ValueError(f"{recorded} bottles are already recorded")
 
@@ -303,30 +289,16 @@ def split_purchase(total_price_cents, bottles, consumed, deposit_missing_cents=N
         person_id: Fraction(total_price_cents * qty, bottles)
         for person_id, qty in consumed.items()
     }
-    if deposit_missing_cents is None:
-        # Round each share on its own so it never drops when someone else
-        # drinks; beer stock in balance_sheet absorbs the rounding.
-        return {pid: int(amount + Fraction(1, 2)) for pid, amount in exact.items()}
-    else:
+    if deposit_missing_cents is not None:
         unaccounted = Fraction(
             total_price_cents * (bottles - sum(consumed.values())), bottles)
         extra = (unaccounted + deposit_missing_cents) / len(consumed)
         exact = {person_id: amount + extra for person_id, amount in exact.items()}
-        target = total_price_cents + deposit_missing_cents
 
-    return _allocate(exact, target)
-
-
-def _allocate(exact, target):
-    """Largest remainder, so allocated cents sum to target exactly."""
-    cents = {pid: amount.numerator // amount.denominator
-             for pid, amount in exact.items()}
-    left = target - sum(cents.values())
-    order = sorted(exact, key=lambda pid: (exact[pid] - cents[pid], -pid),
-                   reverse=True)
-    for pid in order[:left]:
-        cents[pid] += 1
-    return cents
+    # Each share rounds on its own, so it only ever grows (more drinking,
+    # closing); a payment made on an open crate can never end up above it.
+    # The few cents this is off from the crate total show as "rounding".
+    return {pid: int(amount + Fraction(1, 2)) for pid, amount in exact.items()}
 
 
 def _consumed_for(conn, purchase_id):
@@ -345,30 +317,25 @@ def _shares_for(conn, purchase):
         purchase["deposit_missing_cents"])
 
 
-def _payments(conn):
-    rows = conn.execute("""
+def _payments(conn, purchase_id=None):
+    """{(purchase_id, person_id): paid cents}, optionally for one crate."""
+    query = """
         SELECT purchase_id, person_id, SUM(amount_cents) AS cents
         FROM ledger WHERE kind = 'payment'
-        GROUP BY purchase_id, person_id
-    """).fetchall()
+    """
+    params = ()
+    if purchase_id is not None:
+        query += " AND purchase_id = ?"
+        params = (purchase_id,)
+    rows = conn.execute(query + " GROUP BY purchase_id, person_id", params)
     return {(r["purchase_id"], r["person_id"]): r["cents"] for r in rows}
 
 
 # ------------------------------------------------------------------ debts
 
 def _remaining(conn, person_id, purchase_id):
-    purchase = conn.execute("""
-        SELECT purchase_id, bottles, total_price_cents, deposit_missing_cents
-        FROM purchase WHERE purchase_id = ?
-    """, (purchase_id,)).fetchone()
-    if purchase is None:
-        raise ValueError(f"Unknown purchase {purchase_id}")
-    share = _shares_for(conn, purchase).get(person_id, 0)
-    paid = conn.execute("""
-        SELECT COALESCE(SUM(amount_cents), 0) AS n
-        FROM ledger
-        WHERE kind = 'payment' AND purchase_id = ? AND person_id = ?
-    """, (purchase_id, person_id)).fetchone()["n"]
+    share = _shares_for(conn, _purchase(conn, purchase_id)).get(person_id, 0)
+    paid = _payments(conn, purchase_id).get((purchase_id, person_id), 0)
     return share - paid
 
 
@@ -436,7 +403,7 @@ def owed_by_person():
 
 
 def balance_sheet():
-    """Cash + deposits + beer stock + debts must equal opening + top-ups."""
+    """Cash + deposits + beer stock + debts + rounding = opening + top-ups."""
     with connect() as conn:
         cash = conn.execute(
             "SELECT COALESCE(SUM(amount_cents), 0) AS n FROM ledger"
@@ -445,66 +412,59 @@ def balance_sheet():
             SELECT COALESCE(SUM(amount_cents), 0) AS n
             FROM ledger WHERE kind IN ('opening', 'topup')
         """).fetchone()["n"]
-        purchases = conn.execute("""
-            SELECT purchase_id, bottles, total_price_cents, deposit_cents,
-                   deposit_missing_cents, closed_at
-            FROM purchase
-        """).fetchall()
+        purchases = conn.execute("SELECT * FROM purchase").fetchall()
         payments = _payments(conn)
 
-        debts = 0
-        inventory = 0
-        deposits = 0
+        debts = inventory = deposits = rounding = 0
         for purchase in purchases:
             shares = _shares_for(conn, purchase)
+            charged = sum(shares.values())
             paid = sum(payments.get((purchase["purchase_id"], pid), 0)
                        for pid in shares)
-            debts += sum(shares.values()) - paid
+            debts += charged - paid
             if purchase["closed_at"] is None:
-                inventory += purchase["total_price_cents"] - sum(shares.values())
+                inventory += purchase["total_price_cents"] - charged
                 deposits += purchase["deposit_cents"]
+            else:
+                rounding += (purchase["total_price_cents"]
+                             + purchase["deposit_missing_cents"] - charged)
 
-    total = cash + debts + inventory + deposits
+    total = cash + debts + inventory + deposits + rounding
     return {
         "cash": cash,
         "debts": debts,
         "inventory": inventory,
         "deposits": deposits,
+        "rounding": rounding,
         "expected": expected,
         "difference": total - expected,
     }
 
 
 def purchase_summary(purchase_id, deposit_missing_cents=0):
-    """What closing this crate would charge, without closing it."""
-    with connect() as conn:
-        purchase = conn.execute("""
-            SELECT p.purchased_on, p.bottles, p.total_price_cents,
-                   pr.name AS product
-            FROM purchase p JOIN product pr USING (product_id)
-            WHERE p.purchase_id = ?
-        """, (purchase_id,)).fetchone()
-        if purchase is None:
-            raise ValueError(f"Unknown purchase {purchase_id}")
-        rows = conn.execute("""
-            SELECT c.person_id, pe.name, SUM(c.bottles) AS bottles
-            FROM consumption c JOIN person pe USING (person_id)
-            WHERE c.purchase_id = ?
-            GROUP BY c.person_id ORDER BY pe.name
-        """, (purchase_id,)).fetchall()
+    """What closing this crate would charge, without closing it.
 
-    consumed = {r["person_id"]: r["bottles"] for r in rows}
+    Raises the same errors close_purchase would, before anything is shown.
+    """
+    with connect() as conn:
+        purchase = _check_closable(conn, purchase_id, deposit_missing_cents)
+        product = conn.execute(
+            "SELECT name FROM product WHERE product_id = ?",
+            (purchase["product_id"],)).fetchone()["name"]
+        consumed = _consumed_for(conn, purchase_id)
+        names = {r["person_id"]: r["name"] for r in conn.execute(
+            "SELECT person_id, name FROM person")}
+
     shares = split_purchase(
         purchase["total_price_cents"], purchase["bottles"],
         consumed, deposit_missing_cents)
     return {
-        "product": purchase["product"],
+        "product": product,
         "purchased_on": purchase["purchased_on"],
         "bottles": purchase["bottles"],
         "unaccounted": purchase["bottles"] - sum(consumed.values()),
         "total_cents": purchase["total_price_cents"] + deposit_missing_cents,
-        "drinkers": [
-            (r["name"], r["bottles"], shares.get(r["person_id"], 0))
-            for r in rows
-        ],
+        "drinkers": sorted(
+            ((names[pid], qty, shares[pid]) for pid, qty in consumed.items()),
+            key=lambda d: d[0].lower()),
     }

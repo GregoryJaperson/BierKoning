@@ -36,7 +36,7 @@ class MigrateTests(unittest.TestCase):
     def test_purchase_summary_previews_the_close(self):
         alice = division.add_person("Alice")
         bob = division.add_person("Bob")
-        crate = division.add_crate("Test", "2026-11-01", 24, 1500)
+        crate = division.add_crate("Test", "2026-11-01", 24, 1500, 390)
         division.record_consumption(alice, crate, 6)
         division.record_consumption(bob, crate, 3)
 
@@ -45,6 +45,63 @@ class MigrateTests(unittest.TestCase):
         self.assertEqual(summary["total_cents"], 1550)
         self.assertEqual(summary["drinkers"],
                          [("Alice", 6, 869), ("Bob", 3, 681)])
+
+        # The preview refuses what the close would refuse.
+        with self.assertRaises(ValueError):
+            division.purchase_summary(crate, 391)  # more than the deposit
+        division.close_purchase(crate, 50)
+        with self.assertRaises(ValueError):
+            division.purchase_summary(crate, 0)  # already closed
+
+    def test_paid_open_share_never_ends_up_overpaid(self):
+        division.record_opening(18000)
+        people = [division.add_person(n) for n in ("A", "B", "C")]
+        crate = division.add_crate("Test", "2026-11-01", 3, 1001)
+        for person in people:
+            division.record_consumption(person, crate, 1)
+            division.record_payment(person, crate,
+                                    division.remaining_for(person, crate))
+
+        division.close_purchase(crate, 0)
+        for person in people:
+            self.assertGreaterEqual(division.remaining_for(person, crate), 0)
+        self.assertEqual(division.owed_by_person(), [])
+        sheet = division.balance_sheet()
+        self.assertEqual(sheet["difference"], 0)
+        self.assertEqual(sheet["rounding"], -1)  # 3 x 334 = 1002 for 1001
+
+    def test_entry_must_belong_to_the_crate(self):
+        alice = division.add_person("Alice")
+        crate_a = division.add_crate("Test", "2026-11-01", 24, 1500)
+        crate_b = division.add_crate("Test", "2026-11-01", 24, 1500)
+        division.record_consumption(alice, crate_b, 3)
+        entry = division.list_consumption(crate_b)[0]["consumption_id"]
+
+        with self.assertRaises(ValueError):
+            division.delete_consumption(crate_a, entry)
+        self.assertEqual(len(division.list_consumption(crate_b)), 1)
+
+    def test_failed_migration_leaves_no_trace(self):
+        folder = Path(self._tmp.name) / "migrations"
+        folder.mkdir()
+        for path in migrate.MIGRATIONS.glob("*.sql"):
+            (folder / path.name).write_text(path.read_text())
+        (folder / "003_bad.sql").write_text(
+            "CREATE TABLE half_done (x INTEGER);\nTHIS IS NOT SQL;\n")
+        old, migrate.MIGRATIONS = migrate.MIGRATIONS, folder
+        try:
+            with self.assertRaises(sqlite3.OperationalError):
+                migrate.migrate()
+        finally:
+            migrate.MIGRATIONS = old
+
+        with db.connect() as conn:
+            tables = {r["name"] for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'")}
+            versions = {r["version"] for r in conn.execute(
+                "SELECT version FROM schema_version")}
+        self.assertNotIn("half_done", tables)
+        self.assertNotIn(3, versions)
 
     def test_legacy_marker_moves_out_of_sql_numbering(self):
         with db.connect() as conn:
@@ -92,7 +149,7 @@ class MigrateTests(unittest.TestCase):
         division.record_consumption(alice, crate, 3)
         entry = division.list_consumption(crate)[0]["consumption_id"]
 
-        division.delete_consumption(entry)
+        division.delete_consumption(crate, entry)
         self.assertEqual(division.list_consumption(crate), [])
         self.assertEqual(division.owed_by_person(), [])
 
@@ -120,14 +177,14 @@ class MigrateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             division.edit_crate(crate, 24, 1000, 0)  # share drops below paid
         with self.assertRaises(ValueError):
-            division.delete_consumption(entry)
+            division.delete_consumption(crate, entry)
         self.assertEqual(division.remaining_for(alice, crate), 0)  # rolled back
 
         division.close_purchase(crate, 0)
         with self.assertRaises(ValueError):
             division.edit_crate(crate, 24, 2000, 0)
         with self.assertRaises(ValueError):
-            division.delete_consumption(entry)
+            division.delete_consumption(crate, entry)
 
     def test_cash_only_added(self):
         division.record_opening(18000)

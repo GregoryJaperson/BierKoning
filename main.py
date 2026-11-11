@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.table import Table
 
 import division
+import migrate
 
 ERRORS = (ValueError, InvalidOperation, sqlite3.IntegrityError)
 # markup=False: names like "[Bob]" print as-is, so nothing needs escaping.
@@ -16,9 +17,29 @@ def money(cents):
     return f"EUR {cents / 100:.2f}"
 
 
-def screen(title):
+def crates_panel():
+    """Compact open-crates table that every screen shows."""
+    crates = division.list_available()
+    if not crates:
+        return "(no open crates)"
+    t = Table("#", "Beer", "Left", "Per bottle", title="Open crates")
+    for p in crates:
+        t.add_row(str(p["purchase_id"]), p["name"],
+                  f"{p['remaining']}/{p['bottles']}",
+                  money(p["total_price_cents"] / p["bottles"]))
+    return t
+
+
+def screen(title, beside=None):
+    """Clear, header, open crates: next to `beside` (the menu) or on top."""
     console.clear()
     console.rule(f"{title}  ·  cash {money(division.get_balance())}", style="bold")
+    if beside is None:
+        console.print(crates_panel())
+        return
+    grid = Table.grid(padding=(0, 4))
+    grid.add_row(beside, crates_panel())
+    console.print(grid)
 
 
 def pause():
@@ -36,8 +57,7 @@ def ask_int(prompt, default=None):
 def ask_date(prompt, default=None):
     hint = f" [{default}]" if default else ""
     raw = input(f"{prompt}{hint}: ").strip() or default
-    date.fromisoformat(raw)
-    return raw
+    return date.fromisoformat(raw).isoformat()  # 20261101 -> 2026-11-01
 
 
 def ask_cents(prompt, default=None):
@@ -135,12 +155,14 @@ def show_owed():
 
 def show_balance():
     b = division.balance_sheet()
-    total = b["cash"] + b["deposits"] + b["inventory"] + b["debts"]
+    total = (b["cash"] + b["deposits"] + b["inventory"] + b["debts"]
+             + b["rounding"])
     t = Table("Item", "Amount", title="Balance sheet")
     t.add_row("Cash", money(b["cash"]))
     t.add_row("Deposits", money(b["deposits"]))
     t.add_row("Beer stock", money(b["inventory"]))
-    t.add_row("Debts", money(b["debts"]), end_section=True)
+    t.add_row("Debts", money(b["debts"]))
+    t.add_row("Rounding", money(b["rounding"]), end_section=True)
     t.add_row("Total", money(total), style="bold")
     t.add_row("Beginning", money(b["expected"]))
     if b["difference"]:
@@ -172,7 +194,6 @@ def add_crate():
 def record_drinks():
     show_people(True)
     person_id = ask_int("Person ID")
-    show_available()
     purchase_id = ask_int("Purchase ID")
     bottles = ask_int("Bottles")
     division.record_consumption(person_id, purchase_id, bottles)
@@ -180,7 +201,6 @@ def record_drinks():
 
 
 def close_crate():
-    show_available()
     purchase_id = ask_int("Purchase ID")
     missing = ask_cents("Missing deposit (lost bottles/crate)", default=0)
     summary = division.purchase_summary(purchase_id, missing)
@@ -221,7 +241,7 @@ def add_cash():
 
 
 def correct_crate():
-    crates = {p["purchase_id"]: p for p in show_available()}
+    crates = {p["purchase_id"]: p for p in division.list_available()}
     purchase_id = ask_int("Purchase ID")
     crate = crates.get(purchase_id)
     if crate is None:
@@ -239,7 +259,7 @@ def correct_crate():
         for e in entries:
             t.add_row(str(e["consumption_id"]), e["name"], str(e["bottles"]))
         console.print(t)
-        division.delete_consumption(ask_int("Entry ID"))
+        division.delete_consumption(purchase_id, ask_int("Entry ID"))
         console.print("Entry deleted.", style="green")
     elif choice == "2":
         bottles = ask_int("Bottles in crate", crate["bottles"])
@@ -293,9 +313,8 @@ MAIN_MENU = [
 def run_menu(title, items):
     """Menu -> chosen action on its own screen -> pause -> back to the menu."""
     while True:
-        screen(title)
-        for i, (label, _) in enumerate(items, 1):
-            console.print(f" {i:>2}. {label}")
+        screen(title, beside="\n".join(
+            f" {i:>2}. {label}" for i, (label, _) in enumerate(items, 1)))
         choice = input(f"\nChoose action (1-{len(items)}): ").strip()
         if not (choice.isdigit() and 1 <= int(choice) <= len(items)):
             console.print("Choice is invalid", style="red")
@@ -312,15 +331,22 @@ def run_menu(title, items):
             action()
         except ERRORS as exc:
             console.print(f"Error: {exc}", style="red")
+        except (KeyboardInterrupt, EOFError):  # Ctrl-C / Ctrl-D backs out
+            continue
         pause()
 
 
 def main():
-    if division.needs_opening():
-        screen("Setup")
-        console.print("No house cash recorded yet.")
-        division.record_opening(ask_cents("House cash before setup", default=18000))
-    run_menu("BEER KING", MAIN_MENU)
+    migrate.migrate()
+    try:
+        if division.needs_opening():
+            screen("Setup")
+            console.print("No house cash recorded yet.")
+            division.record_opening(
+                ask_cents("House cash before setup", default=18000))
+        run_menu("BEER KING", MAIN_MENU)
+    except (KeyboardInterrupt, EOFError):
+        console.print("\nBye.")
 
 
 if __name__ == "__main__":

@@ -18,8 +18,7 @@ Each student house has their own set of rules for beer distribution, here is min
 Currently, it is a TUI only application, here is a step-by-step tutorial on how to use it:
 1. Clone this repository
 2. Run ```uv sync``` to create the environment and install dependencies
-3. Run ```uv run python migrate.py``` to initialize/upgrade the sqlite database
-4. Run ```uv run python main.py``` to run the main menu
+3. Run ```uv run python main.py``` to run the main menu (it creates/upgrades the sqlite database on start; ```uv run python migrate.py``` does only that)
 
 ## Tests
 ```uv run python -m unittest discover -v```

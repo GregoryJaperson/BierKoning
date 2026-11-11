@@ -13,8 +13,14 @@ class SplitTests(unittest.TestCase):
 
     def test_unaccounted_bottles_split_evenly(self):
         shares = split_purchase(1500, 24, {1: 6, 2: 3, 3: 3}, 0)
-        self.assertEqual(shares, {1: 625, 2: 438, 3: 437})
-        self.assertEqual(sum(shares.values()), 1500)
+        self.assertEqual(shares, {1: 625, 2: 438, 3: 438})  # 1c rounding
+
+    def test_closed_share_never_below_open_share(self):
+        consumed = {1: 1, 2: 1, 3: 1}
+        open_shares = split_purchase(1001, 3, consumed)
+        closed_shares = split_purchase(1001, 3, consumed, 0)
+        for pid in consumed:
+            self.assertGreaterEqual(closed_shares[pid], open_shares[pid])
 
     def test_missing_deposit_split_evenly(self):
         shares = split_purchase(1500, 24, {1: 6, 2: 3, 3: 3}, 50)

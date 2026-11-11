@@ -90,8 +90,12 @@ def migrate():
             version = int(path.name.split("_", 1)[0])
             if version in done:
                 continue
-            conn.executescript(path.read_text())
-            conn.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
+            # One transaction: the schema change and its version row land
+            # together or not at all, so a failed migration can be re-run.
+            conn.executescript(
+                f"BEGIN;\n{path.read_text()}\n"
+                f"INSERT INTO schema_version (version) VALUES ({version});\n"
+                "COMMIT;")
             done.add(version)
 
         if LEGACY_VERSION not in done:
