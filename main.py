@@ -46,31 +46,69 @@ def pause():
     input("\nPress Enter to continue...")
 
 
-def ask_int(prompt, default=None):
+def ask(prompt, parse, valid=None):
+    """Re-prompt until the answer parses and, if `valid` is given, is in it."""
+    while True:
+        try:
+            value = parse(input(prompt).strip())
+        except ERRORS as exc:
+            console.print(f"{exc}. Try again.", style="red")
+            continue
+        if valid is None or value in valid:
+            return value
+        if isinstance(valid, range):
+            console.print(f"Enter a number from {valid.start} to {valid.stop - 1}.",
+                          style="red")
+        else:
+            console.print(f"#{value} does not exist. Pick one from the list.",
+                          style="red")
+
+
+def ask_int(prompt, default=None, valid=None):
     hint = f" [{default}]" if default is not None else ""
-    raw = input(f"{prompt}{hint}: ").strip()
-    if not raw and default is not None:
-        return default
-    return int(raw)
+
+    def parse(raw):
+        if not raw and default is not None:
+            return default
+        try:
+            return int(raw)
+        except ValueError:
+            raise ValueError("Not a whole number") from None
+
+    return ask(f"{prompt}{hint}: ", parse, valid)
 
 
 def ask_date(prompt, default=None):
     hint = f" [{default}]" if default else ""
-    raw = input(f"{prompt}{hint}: ").strip() or default
-    return date.fromisoformat(raw).isoformat()  # 20261101 -> 2026-11-01
+
+    def parse(raw):
+        try:
+            return date.fromisoformat(raw or default).isoformat()  # 20261101 -> 2026-11-01
+        except (TypeError, ValueError):
+            raise ValueError("Not a date, use YYYY-MM-DD") from None
+
+    return ask(f"{prompt}{hint}: ", parse)
 
 
-def ask_cents(prompt, default=None):
+def ask_cents(prompt, default=None, maximum=None):
     hint = f" [{default / 100:.2f}]" if default is not None else ""
-    raw = input(f"{prompt} (EUR){hint}: ").strip()
-    if not raw:
-        if default is None:
-            raise ValueError("Amount required")
-        return default
-    cents = int((Decimal(raw) * 100).quantize(Decimal("1")))
-    if cents < 0:
-        raise ValueError("Amount cannot be negative")
-    return cents
+
+    def parse(raw):
+        if not raw:
+            if default is None:
+                raise ValueError("Amount required")
+            return default
+        try:
+            cents = int((Decimal(raw) * 100).quantize(Decimal("1")))
+        except InvalidOperation:
+            raise ValueError("Not an amount, use e.g. 12.50") from None
+        if cents < 0:
+            raise ValueError("Amount cannot be negative")
+        if maximum is not None and cents > maximum:
+            raise ValueError(f"At most {money(maximum)}")
+        return cents
+
+    return ask(f"{prompt} (EUR){hint}: ", parse)
 
 
 # ------------------------------------------------------------------ views
@@ -175,10 +213,17 @@ def show_balance():
 def add_crate():
     products = show_products()
     known = {p["product_id"]: p["name"] for p in products}
-    raw = input("Beer (number or new name): ").strip()
-    if raw.isdigit() and int(raw) not in known:
-        raise ValueError(f"Unknown beer number {raw}")
-    name = known[int(raw)] if raw.isdigit() else raw
+
+    def parse(raw):
+        if raw.isdigit():
+            if int(raw) not in known:
+                raise ValueError(f"Beer #{raw} does not exist")
+            return known[int(raw)]
+        if not raw:
+            raise ValueError("Beer name cannot be empty")
+        return raw
+
+    name = ask("Beer (number or new name): ", parse)
     purchased_on = ask_date("Purchase date", date.today().isoformat())
     bottles = ask_int("Bottles in crate")
     price = ask_cents("Crate price")
@@ -192,17 +237,33 @@ def add_crate():
 
 
 def record_drinks():
-    show_people(True)
-    person_id = ask_int("Person ID")
-    purchase_id = ask_int("Purchase ID")
+    people = show_people(True)
+    if not people:
+        return
+    crates = open_crates()
+    if not crates:
+        return
+    person_id = ask_int("Person ID", valid={p["person_id"] for p in people})
+    purchase_id = ask_int("Purchase ID", valid=crates)
     bottles = ask_int("Bottles")
     division.record_consumption(person_id, purchase_id, bottles)
     console.print("Consumption recorded.", style="green")
 
 
+def open_crates():
+    crates = {p["purchase_id"]: p for p in division.list_available()}
+    if not crates:
+        console.print("(no open crates)")
+    return crates
+
+
 def close_crate():
-    purchase_id = ask_int("Purchase ID")
-    missing = ask_cents("Missing deposit (lost bottles/crate)", default=0)
+    crates = open_crates()
+    if not crates:
+        return
+    purchase_id = ask_int("Purchase ID", valid=crates)
+    missing = ask_cents("Missing deposit (lost bottles/crate)", default=0,
+                        maximum=crates[purchase_id]["deposit_cents"])
     summary = division.purchase_summary(purchase_id, missing)
     t = Table("Person", "Bottles", "Owes",
               title=f"{summary['product']} ({summary['purchased_on']}, "
@@ -224,13 +285,16 @@ def close_crate():
 
 def record_payment():
     show_owed()
-    person_id = ask_int("Person ID")
-    purchase_id = ask_int("Crate ID")
-    remaining = division.remaining_for(person_id, purchase_id)
-    if remaining <= 0:
-        console.print("Nothing left to pay for this crate.")
+    owed = {}
+    for d in division.owed_details():
+        if d["remaining"] > 0:
+            owed.setdefault(d["person_id"], {})[d["purchase_id"]] = d["remaining"]
+    if not owed:
         return
-    amount = ask_cents("Payment", default=remaining)
+    person_id = ask_int("Person ID", valid=owed)
+    purchase_id = ask_int("Crate ID", valid=owed[person_id])
+    remaining = owed[person_id][purchase_id]
+    amount = ask_cents("Payment", default=remaining, maximum=remaining)
     division.record_payment(person_id, purchase_id, amount)
     console.print("Payment recorded.", style="green")
 
@@ -241,15 +305,15 @@ def add_cash():
 
 
 def correct_crate():
-    crates = {p["purchase_id"]: p for p in division.list_available()}
-    purchase_id = ask_int("Purchase ID")
-    crate = crates.get(purchase_id)
-    if crate is None:
-        raise ValueError(f"No open crate #{purchase_id}")
+    crates = open_crates()
+    if not crates:
+        return
+    purchase_id = ask_int("Purchase ID", valid=crates)
+    crate = crates[purchase_id]
     console.print(" 1. Delete a 'who drank what' entry")
     console.print(" 2. Edit bottles / price / deposit")
-    choice = input("Choose (1-2): ").strip()
-    if choice == "1":
+    choice = ask_int("Choose (1-2)", valid=range(1, 3))
+    if choice == 1:
         entries = division.list_consumption(purchase_id)
         if not entries:
             console.print("(nothing recorded)")
@@ -259,16 +323,16 @@ def correct_crate():
         for e in entries:
             t.add_row(str(e["consumption_id"]), e["name"], str(e["bottles"]))
         console.print(t)
-        division.delete_consumption(purchase_id, ask_int("Entry ID"))
+        entry_id = ask_int("Entry ID",
+                           valid={e["consumption_id"] for e in entries})
+        division.delete_consumption(purchase_id, entry_id)
         console.print("Entry deleted.", style="green")
-    elif choice == "2":
+    else:
         bottles = ask_int("Bottles in crate", crate["bottles"])
         price = ask_cents("Crate price", crate["total_price_cents"])
         deposit = ask_cents("Deposit", crate["deposit_cents"])
         division.edit_crate(purchase_id, bottles, price, deposit)
         console.print("Crate updated.", style="green")
-    else:
-        console.print("Choice is invalid", style="red")
 
 
 def add_person():
@@ -277,8 +341,10 @@ def add_person():
 
 
 def toggle_person():
-    show_people()
-    person_id = ask_int("Person ID")
+    people = show_people()
+    if not people:
+        return
+    person_id = ask_int("Person ID", valid={p["person_id"] for p in people})
     active = input("Active? [y/N]: ").strip().lower() == "y"
     division.set_person_active(person_id, active)
     console.print("Person updated.", style="green")
@@ -328,12 +394,20 @@ def run_menu(title, items):
             continue
         screen(label)
         try:
-            action()
-        except ERRORS as exc:
-            console.print(f"Error: {exc}", style="red")
+            retry(action)
         except (KeyboardInterrupt, EOFError):  # Ctrl-C / Ctrl-D backs out
             continue
         pause()
+
+
+def retry(action):
+    """Rerun the action when the final save rejects the input."""
+    while True:
+        try:
+            return action()
+        except ERRORS as exc:
+            console.print(f"Error: {exc}. Try again (Ctrl-C to go back).",
+                          style="red")
 
 
 def main():
