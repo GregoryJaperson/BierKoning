@@ -15,10 +15,21 @@ Each student house has their own set of rules for beer distribution, here is min
 8. Cash, deposits, beer stock and outstanding debts always add up to the opening cash
 
 ## How to use
-Currently, it is a TUI only application, here is a step-by-step tutorial on how to use it:
-1. Clone this repository
-2. Run ```uv sync``` to create the environment and install dependencies
-3. Run ```uv run python main.py``` to run the main menu (it creates/upgrades the sqlite database on start; ```uv run python migrate.py``` does only that)
+Currently, it is a TUI only application. You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and git.
+1. Run ```uv tool install git+https://github.com/GregoryJaperson/BierKoning```
+2. Run ```uv tool update-shell``` once, then open a new terminal (puts `bierkoning` on your PATH)
+3. Type ```bierkoning``` from any folder
+
+Update later with ```uv tool upgrade bierkoning```.
+
+Your data is kept per user, outside the install:
+- Linux: `~/.local/share/bierkoning/beer.db`
+- macOS: `~/Library/Application Support/BierKoning/beer.db`
+- Windows: `%APPDATA%\BierKoning\beer.db`
+
+## Development
+1. Clone this repository and run ```uv sync```
+2. Run ```uv tool install --editable .``` so `bierkoning` runs your working copy
 
 ## Tests
 ```uv run python -m unittest discover -v```
