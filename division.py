@@ -19,11 +19,6 @@ def _product_id(conn, name):
         "INSERT INTO product (name) VALUES (?)", (name,)).lastrowid
 
 
-def add_product(name):
-    with connect() as conn:
-        return _product_id(conn, name)
-
-
 def list_products():
     with connect() as conn:
         return conn.execute(
@@ -112,11 +107,12 @@ def record_consumption(person_id, purchase_id, bottles):
         if used + bottles > purchase["bottles"]:
             raise ValueError(f"Only {purchase['bottles'] - used} bottles left in this crate")
 
-        # consumed_on is left to its DB default (today): a silent entry stamp.
+        # Local date from Python: the DB default date('now') is UTC, which
+        # stamps drinks after local midnight on the day before.
         conn.execute("""
-            INSERT INTO consumption (person_id, purchase_id, bottles)
-            VALUES (?, ?, ?)
-        """, (person_id, purchase_id, bottles))
+            INSERT INTO consumption (consumed_on, person_id, purchase_id, bottles)
+            VALUES (?, ?, ?, ?)
+        """, (date.today().isoformat(), person_id, purchase_id, bottles))
 
 
 def _check_closable(conn, purchase_id, deposit_missing_cents):
@@ -339,11 +335,6 @@ def _remaining(conn, person_id, purchase_id):
     return share - paid
 
 
-def remaining_for(person_id, purchase_id):
-    with connect() as conn:
-        return _remaining(conn, person_id, purchase_id)
-
-
 def record_payment(person_id, purchase_id, amount_cents):
     if amount_cents <= 0:
         raise ValueError("Payment must be positive")
@@ -389,17 +380,6 @@ def owed_details():
                     "remaining": share - paid,
                 })
         return details
-
-
-def owed_by_person():
-    totals = {}
-    names = {}
-    for detail in owed_details():
-        person_id = detail["person_id"]
-        names[person_id] = detail["person"]
-        totals[person_id] = totals.get(person_id, 0) + detail["remaining"]
-    return sorted(((names[pid], cents) for pid, cents in totals.items() if cents),
-                  key=lambda item: item[0].lower())
 
 
 def balance_sheet():

@@ -390,7 +390,10 @@ def run_menu(title, items):
         if action is None:
             return
         if isinstance(action, list):
-            run_menu(label, action)
+            try:
+                run_menu(label, action)
+            except (KeyboardInterrupt, EOFError):  # back to this menu, not out
+                pass
             continue
         screen(label)
         try:

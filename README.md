@@ -12,7 +12,7 @@ Each student house has their own set of rules for beer distribution, here is min
 5. Missing beers and missing deposit are divided among everyone that drank from the crate
 6. Counting of beers is done outside of the system
 7. Inputs of beer consumption and missing deposit is done right before the crate is returned
-8. Cash, deposits, beer stock and outstanding debts always add up to the opening cash
+8. Cash, deposits, beer stock and outstanding debts always add up to the opening cash plus top-ups (a few cents may show as rounding)
 
 ## How to use
 Currently, it is a TUI only application. You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and git.

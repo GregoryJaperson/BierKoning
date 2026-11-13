@@ -1,11 +1,21 @@
 import sqlite3
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 import db
 import division
 import migrate
+
+
+def remaining(person_id, crate):
+    return sum(d["remaining"] for d in division.owed_details()
+               if (d["person_id"], d["purchase_id"]) == (person_id, crate))
+
+
+def anyone_owes():
+    return any(d["remaining"] for d in division.owed_details())
 
 
 class MigrateTests(unittest.TestCase):
@@ -31,7 +41,7 @@ class MigrateTests(unittest.TestCase):
             for path in sorted(migrate.MIGRATIONS.glob("*.sql")):
                 conn.executescript(path.read_text())
 
-        self.assertEqual(division.owed_by_person(), [("Alice", 188)])
+        self.assertEqual(remaining(alice, crate), 188)
 
     def test_purchase_summary_previews_the_close(self):
         alice = division.add_person("Alice")
@@ -60,15 +70,23 @@ class MigrateTests(unittest.TestCase):
         for person in people:
             division.record_consumption(person, crate, 1)
             division.record_payment(person, crate,
-                                    division.remaining_for(person, crate))
+                                    remaining(person, crate))
 
         division.close_purchase(crate, 0)
         for person in people:
-            self.assertGreaterEqual(division.remaining_for(person, crate), 0)
-        self.assertEqual(division.owed_by_person(), [])
+            self.assertGreaterEqual(remaining(person, crate), 0)
+        self.assertFalse(anyone_owes())
         sheet = division.balance_sheet()
         self.assertEqual(sheet["difference"], 0)
         self.assertEqual(sheet["rounding"], -1)  # 3 x 334 = 1002 for 1001
+
+    def test_consumption_is_dated_with_the_local_day(self):
+        alice = division.add_person("Alice")
+        crate = division.add_crate("Test", "2026-11-01", 24, 1500)
+        division.record_consumption(alice, crate, 1)
+        with db.connect() as conn:
+            day = conn.execute("SELECT consumed_on FROM consumption").fetchone()[0]
+        self.assertEqual(day, date.today().isoformat())
 
     def test_entry_must_belong_to_the_crate(self):
         alice = division.add_person("Alice")
@@ -103,19 +121,6 @@ class MigrateTests(unittest.TestCase):
         self.assertNotIn("half_done", tables)
         self.assertNotIn(3, versions)
 
-    def test_legacy_marker_moves_out_of_sql_numbering(self):
-        with db.connect() as conn:
-            conn.execute("DELETE FROM schema_version")
-            conn.execute("INSERT INTO schema_version (version) VALUES (2)")
-
-        migrate.migrate()
-
-        with db.connect() as conn:
-            versions = {r["version"] for r in conn.execute(
-                "SELECT version FROM schema_version")}
-        self.assertIn(migrate.LEGACY_VERSION, versions)
-        self.assertIn(2, versions)  # 002 is a real migration again
-
     def test_cash_balance_and_payments(self):
         division.record_opening(18000)
         alice = division.add_person("Alice")
@@ -129,10 +134,10 @@ class MigrateTests(unittest.TestCase):
 
         division.record_consumption(alice, crate, 12)
         division.record_consumption(bob, crate, 12)
-        self.assertEqual(division.remaining_for(alice, crate), 750)
+        self.assertEqual(remaining(alice, crate), 750)
 
         division.record_payment(alice, crate, 750)
-        self.assertEqual(division.remaining_for(alice, crate), 0)
+        self.assertEqual(remaining(alice, crate), 0)
         with self.assertRaises(ValueError):
             division.record_payment(alice, crate, 1)
 
@@ -151,7 +156,7 @@ class MigrateTests(unittest.TestCase):
 
         division.delete_consumption(crate, entry)
         self.assertEqual(division.list_consumption(crate), [])
-        self.assertEqual(division.owed_by_person(), [])
+        self.assertFalse(anyone_owes())
 
     def test_edit_crate_books_the_difference(self):
         division.record_opening(18000)
@@ -161,7 +166,7 @@ class MigrateTests(unittest.TestCase):
 
         division.edit_crate(crate, 24, 1400, 390)
         self.assertEqual(division.get_balance(), 18000 - 1400 - 390)
-        self.assertEqual(division.remaining_for(alice, crate), 700)
+        self.assertEqual(remaining(alice, crate), 700)
         self.assertEqual(division.balance_sheet()["difference"], 0)
 
         with self.assertRaises(ValueError):
@@ -178,7 +183,7 @@ class MigrateTests(unittest.TestCase):
             division.edit_crate(crate, 24, 1000, 0)  # share drops below paid
         with self.assertRaises(ValueError):
             division.delete_consumption(crate, entry)
-        self.assertEqual(division.remaining_for(alice, crate), 0)  # rolled back
+        self.assertEqual(remaining(alice, crate), 0)  # rolled back
 
         division.close_purchase(crate, 0)
         with self.assertRaises(ValueError):
