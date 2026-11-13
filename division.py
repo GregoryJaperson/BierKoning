@@ -216,17 +216,12 @@ def list_available():
 def list_history():
     with connect() as conn:
         return conn.execute("""
-            SELECT 'crate' AS source, p.purchase_id AS id, pr.name,
-                   p.purchased_on, p.bottles, p.total_price_cents,
+            SELECT pr.name, p.purchased_on, p.bottles, p.total_price_cents,
                    p.deposit_cents, p.deposit_missing_cents
             FROM purchase p
             JOIN product pr USING (product_id)
             WHERE p.closed_at IS NOT NULL
-            UNION ALL
-            SELECT 'legacy', l.legacy_id, l.product_name, l.purchased_on,
-                   l.bottles, l.total_price_cents, l.deposit_cents, 0
-            FROM legacy_purchase l
-            ORDER BY purchased_on DESC, id DESC
+            ORDER BY p.purchased_on DESC, p.purchase_id DESC
         """).fetchall()
 
 

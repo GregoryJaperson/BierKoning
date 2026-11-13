@@ -1,13 +1,11 @@
-PRAGMA foreign_keys = ON;
-
 CREATE TABLE IF NOT EXISTS product (
   product_id INTEGER PRIMARY KEY,
-  name       TEXT NOT NULL UNIQUE
+  name       TEXT NOT NULL UNIQUE COLLATE NOCASE
 );
 
 CREATE TABLE IF NOT EXISTS person (
   person_id INTEGER PRIMARY KEY,
-  name      TEXT NOT NULL UNIQUE,
+  name      TEXT NOT NULL UNIQUE COLLATE NOCASE,
   active    INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1))
 );
 
@@ -35,16 +33,20 @@ CREATE TABLE IF NOT EXISTS consumption (
   bottles        INTEGER NOT NULL CHECK (bottles > 0)
 );
 
-CREATE TABLE IF NOT EXISTS legacy_purchase (
-  legacy_id         INTEGER PRIMARY KEY,
-  product_name      TEXT NOT NULL,
-  purchased_on      TEXT NOT NULL,
-  bottles           INTEGER NOT NULL,
-  total_price_cents INTEGER NOT NULL,
-  deposit_cents     INTEGER NOT NULL,
-  old_status        TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS ledger (
+  ledger_id    INTEGER PRIMARY KEY,
+  ts           TEXT NOT NULL DEFAULT (datetime('now')),
+  amount_cents INTEGER NOT NULL,
+  kind         TEXT NOT NULL CHECK (kind IN
+                  ('opening','purchase','deposit_return','payment','topup')),
+  purchase_id  INTEGER REFERENCES purchase(purchase_id),
+  person_id    INTEGER REFERENCES person(person_id),
+  note         TEXT
 );
 
 CREATE INDEX IF NOT EXISTS consumption_purchase ON consumption(purchase_id);
 CREATE INDEX IF NOT EXISTS consumption_person   ON consumption(person_id);
 CREATE INDEX IF NOT EXISTS purchase_product     ON purchase(product_id);
+CREATE INDEX IF NOT EXISTS ledger_ts            ON ledger(ts);
+CREATE INDEX IF NOT EXISTS ledger_purchase      ON ledger(purchase_id);
+CREATE INDEX IF NOT EXISTS ledger_person        ON ledger(person_id);

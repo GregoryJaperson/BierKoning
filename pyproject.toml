@@ -18,4 +18,4 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 # shortcut: modules install top-level (main, db, ...), fine inside uv tool's
 # own venv; move them into a bierkoning/ package before publishing to PyPI.
-only-include = ["main.py", "db.py", "division.py", "migrate.py", "migrations"]
+only-include = ["main.py", "db.py", "division.py", "schema.sql"]

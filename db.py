@@ -29,3 +29,11 @@ def connect():
             yield conn
     finally:
         conn.close()
+
+
+def init():
+    """Create any missing tables; existing ones and their data are left alone."""
+    with connect() as conn:
+        # One transaction: one disk sync instead of one per statement.
+        schema = Path(__file__).with_name("schema.sql").read_text()
+        conn.executescript(f"BEGIN;\n{schema}\nCOMMIT;")

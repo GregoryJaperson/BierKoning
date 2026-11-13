@@ -6,7 +6,6 @@ from pathlib import Path
 
 import db
 import division
-import migrate
 
 
 def remaining(person_id, crate):
@@ -18,28 +17,23 @@ def anyone_owes():
     return any(d["remaining"] for d in division.owed_details())
 
 
-class MigrateTests(unittest.TestCase):
+class DivisionTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self._old_path = db.DB_PATH
         db.DB_PATH = Path(self._tmp.name) / "beer.db"
-        migrate.migrate()
+        db.init()
 
     def tearDown(self):
         db.DB_PATH = self._old_path
         self._tmp.cleanup()
 
-    def test_replay_and_second_run_keep_data(self):
-        migrate.migrate()
-
+    def test_init_again_keeps_data(self):
         alice = division.add_person("Alice")
         crate = division.add_crate("Test", "2026-11-01", 24, 1500)
         division.record_consumption(alice, crate, 3)
 
-        # Replaying the schema must not drop or duplicate anything.
-        with db.connect() as conn:
-            for path in sorted(migrate.MIGRATIONS.glob("*.sql")):
-                conn.executescript(path.read_text())
+        db.init()  # runs on every start; must not drop or duplicate anything
 
         self.assertEqual(remaining(alice, crate), 188)
 
@@ -98,28 +92,6 @@ class MigrateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             division.delete_consumption(crate_a, entry)
         self.assertEqual(len(division.list_consumption(crate_b)), 1)
-
-    def test_failed_migration_leaves_no_trace(self):
-        folder = Path(self._tmp.name) / "migrations"
-        folder.mkdir()
-        for path in migrate.MIGRATIONS.glob("*.sql"):
-            (folder / path.name).write_text(path.read_text())
-        (folder / "003_bad.sql").write_text(
-            "CREATE TABLE half_done (x INTEGER);\nTHIS IS NOT SQL;\n")
-        old, migrate.MIGRATIONS = migrate.MIGRATIONS, folder
-        try:
-            with self.assertRaises(sqlite3.OperationalError):
-                migrate.migrate()
-        finally:
-            migrate.MIGRATIONS = old
-
-        with db.connect() as conn:
-            tables = {r["name"] for r in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table'")}
-            versions = {r["version"] for r in conn.execute(
-                "SELECT version FROM schema_version")}
-        self.assertNotIn("half_done", tables)
-        self.assertNotIn(3, versions)
 
     def test_cash_balance_and_payments(self):
         division.record_opening(18000)

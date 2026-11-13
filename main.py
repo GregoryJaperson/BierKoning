@@ -5,8 +5,8 @@ from decimal import Decimal, InvalidOperation
 from rich.console import Console
 from rich.table import Table
 
+import db
 import division
-import migrate
 
 ERRORS = (ValueError, InvalidOperation, sqlite3.IntegrityError)
 # markup=False: names like "[Bob]" print as-is, so nothing needs escaping.
@@ -160,9 +160,8 @@ def show_history():
     t = Table("Bought", "Beer", "Bottles", "Price", "Deposit", "Missing",
               title="Closed crates")
     for h in history:
-        legacy = " (legacy)" if h["source"] == "legacy" else ""
-        missing = h["deposit_missing_cents"] or 0
-        t.add_row(h["purchased_on"], h["name"] + legacy, str(h["bottles"]),
+        missing = h["deposit_missing_cents"]
+        t.add_row(h["purchased_on"], h["name"], str(h["bottles"]),
                   money(h["total_price_cents"]), money(h["deposit_cents"]),
                   money(missing) if missing else "")
     console.print(t)
@@ -414,7 +413,7 @@ def retry(action):
 
 
 def main():
-    migrate.migrate()
+    db.init()
     try:
         if division.needs_opening():
             screen("Setup")
