@@ -415,14 +415,16 @@ def retry(action):
 def main():
     db.init()
     try:
-        if division.needs_opening():
-            screen("Setup")
-            console.print("No house cash recorded yet.")
-            division.record_opening(
-                ask_cents("House cash before setup", default=18000))
-        run_menu("BEER KING", MAIN_MENU)
+        # alternate screen buffer: no scrollback, terminal restored on exit
+        with console.screen(hide_cursor=False):
+            if division.needs_opening():
+                screen("Setup")
+                console.print("No house cash recorded yet.")
+                division.record_opening(
+                    ask_cents("House cash before setup", default=18000))
+            run_menu("BEER KING", MAIN_MENU)
     except (KeyboardInterrupt, EOFError):
-        console.print("\nBye.")
+        console.print("Bye.")
 
 
 if __name__ == "__main__":
