@@ -1,7 +1,16 @@
+import codecs
+import os
+import select
 import sqlite3
+import sys
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+try:  # Linux/macOS only; Windows falls back to plain input() without Esc
+    import termios
+    import tty
+except ImportError:
+    termios = None
 from rich.console import Console
 from rich.table import Table
 
@@ -42,15 +51,55 @@ def screen(title, beside=None):
     console.print(grid)
 
 
+def read(prompt=""):
+    """input() that raises KeyboardInterrupt on Esc, i.e. 'back to the last menu'."""
+    if termios is None or not sys.stdin.isatty():  # Windows, pipes, tests
+        return input(prompt)
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    decode = codecs.getincrementaldecoder("utf-8")(errors="ignore").decode
+    sys.stdout.write(prompt)
+    sys.stdout.flush()
+    buf = []
+    try:
+        tty.setcbreak(fd)  # keystrokes one by one; Ctrl-C still raises
+        while True:
+            ch = decode(os.read(fd, 1))
+            if ch == "\x1b":
+                if not select.select([fd], [], [], 0.05)[0]:
+                    raise KeyboardInterrupt  # a lone Esc
+                kind = os.read(fd, 1)  # arrow/function key: drop just its bytes
+                if kind == b"[":  # ESC [ params... final byte in @..~
+                    while not 0x40 <= os.read(fd, 1)[0] <= 0x7E:
+                        pass
+                elif kind == b"O":  # ESC O x
+                    os.read(fd, 1)
+            elif ch in "\r\n" and ch:
+                sys.stdout.write("\n")
+                return "".join(buf)
+            elif ch in ("\x7f", "\b"):
+                if buf:
+                    buf.pop()
+                    sys.stdout.write("\b \b")
+            elif ch == "\x04" and not buf:
+                raise EOFError
+            elif ch.isprintable() and ch:
+                buf.append(ch)
+                sys.stdout.write(ch)
+            sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
 def pause():
-    input("\nPress Enter to continue...")
+    read("\nPress Enter to continue...")
 
 
 def ask(prompt, parse, valid=None):
     """Re-prompt until the answer parses and, if `valid` is given, is in it."""
     while True:
         try:
-            value = parse(input(prompt).strip())
+            value = parse(read(prompt).strip())
         except ERRORS as exc:
             console.print(f"{exc}. Try again.", style="red")
             continue
@@ -275,7 +324,7 @@ def close_crate():
     if summary["unaccounted"]:
         console.print(f"{summary['unaccounted']} unaccounted bottles split "
                       "evenly among the drinkers", style="yellow")
-    if input("Close and lock? [y/N]: ").strip().lower() != "y":
+    if read("Close and lock? [y/N]: ").strip().lower() != "y":
         console.print("Not closed.")
         return
     division.close_purchase(purchase_id, missing)
@@ -335,7 +384,7 @@ def correct_crate():
 
 
 def add_person():
-    division.add_person(input("Person name: "))
+    division.add_person(read("Person name: "))
     console.print("Person added.", style="green")
 
 
@@ -344,7 +393,7 @@ def toggle_person():
     if not people:
         return
     person_id = ask_int("Person ID", valid={p["person_id"] for p in people})
-    active = input("Active? [y/N]: ").strip().lower() == "y"
+    active = read("Active? [y/N]: ").strip().lower() == "y"
     division.set_person_active(person_id, active)
     console.print("Person updated.", style="green")
 
@@ -380,10 +429,13 @@ def run_menu(title, items):
     while True:
         screen(title, beside="\n".join(
             f" {i:>2}. {label}" for i, (label, _) in enumerate(items, 1)))
-        choice = input(f"\nChoose action (1-{len(items)}): ").strip()
+        choice = read(f"\nChoose action (1-{len(items)}): ").strip()
         if not (choice.isdigit() and 1 <= int(choice) <= len(items)):
             console.print("Choice is invalid", style="red")
-            pause()
+            try:
+                pause()
+            except (KeyboardInterrupt, EOFError):
+                pass
             continue
         label, action = items[int(choice) - 1]
         if action is None:
@@ -397,9 +449,9 @@ def run_menu(title, items):
         screen(label)
         try:
             retry(action)
-        except (KeyboardInterrupt, EOFError):  # Ctrl-C / Ctrl-D backs out
+            pause()
+        except (KeyboardInterrupt, EOFError):  # Esc / Ctrl-C / Ctrl-D backs out
             continue
-        pause()
 
 
 def retry(action):
@@ -408,7 +460,7 @@ def retry(action):
         try:
             return action()
         except ERRORS as exc:
-            console.print(f"Error: {exc}. Try again (Ctrl-C to go back).",
+            console.print(f"Error: {exc}. Try again (Esc to go back).",
                           style="red")
 
 
@@ -422,7 +474,12 @@ def main():
                 console.print("No house cash recorded yet.")
                 division.record_opening(
                     ask_cents("House cash before setup", default=18000))
-            run_menu("BEER KING", MAIN_MENU)
+            while True:
+                try:
+                    run_menu("BEER KING", MAIN_MENU)
+                    break  # "Exit" chosen
+                except KeyboardInterrupt:  # Esc / Ctrl-C at the top: stay
+                    pass
     except (KeyboardInterrupt, EOFError):
         console.print("Bye.")
 
